@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>dataCollectDialog</class>
+ <widget class="QDialog" name="dataCollectDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>322</width>
+    <height>551</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Import collected data</string>
+  </property>
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>517</y>
+     <width>160</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="syncroCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>9</y>
+     <width>166</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Syncronize with existing layer</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="layerComboBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>33</y>
+     <width>301</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="editable">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="downloadCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>469</y>
+     <width>134</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Download attachments</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="relativePathsCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>493</y>
+     <width>156</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Store project relative paths</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="fieldTable">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>59</y>
+     <width>301</width>
+     <height>401</height>
+    </rect>
+   </property>
+   <column>
+    <property name="text">
+     <string>uno</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>due</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>tre</string>
+    </property>
+   </column>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>dataCollectDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>dataCollectDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
