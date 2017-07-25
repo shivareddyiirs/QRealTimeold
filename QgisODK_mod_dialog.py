@@ -243,9 +243,9 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
     def sendForm(self, xForm_id, xForm):
         response = self.getCurrentService().sendForm(xForm_id, xForm)
         return response
-
-    def collectData(self):
-        return self.getCurrentService().collectData()
+    
+    def collectData(self,layer=None):
+        return self.getCurrentService().collectData(layer)
 
     def getLayerFromTable(self,tableData):
         geojsonDict = self.getCurrentService().getLayerFromTable(tableData)
@@ -403,6 +403,7 @@ class ona(external_service):
         url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
         response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
         if response.status_code != requests.codes.ok:
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),self.tr("Response is not Ok"),level=QgsMessageBar.CRITICAL, duration=6)
             return None, response
         forms = response.json()
         form_key = None
@@ -444,21 +445,36 @@ class ona(external_service):
 
     def setDataSubmissionTable(self,xForm_id):
         return None #defined by ona.io
+    
+    def collectData(self,layer=None):
+        if (layer==None):
+            '''
+            interactive table selection
+            '''
+            XFormID = QgisODKImportCollectedData.getXFormID(self)
+            if XFormID:
+                XFormKey, response = self.formIDToPk(XFormID)
+                response, remoteTable = self.getTable(XFormKey)
+                self.importDataFromService.view(XFormID, remoteTable)
+            else:
+                self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
+                                                    self.tr("no data collect table selected"),
+                                                    level=QgsMessageBar.CRITICAL, duration=6)
+            
+        else :
+            XFormID = layer.name().lower()
+            if XFormID:
+                XFormKey, response = self.formIDToPk(XFormID)
+                response, remoteTable = self.getTable(XFormKey)
+                self.importDataFromService.writeLayer(layer)
+            else:
+                self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
+                                                    self.tr("Form is invalid"),
+                                                    level=QgsMessageBar.CRITICAL, duration=6)
 
-    def collectData(self):
-        '''
-        interactive table selection
-        '''
-        XFormID = QgisODKImportCollectedData.getXFormID(self)
-        if XFormID:
-            XFormKey, response = self.formIDToPk(XFormID)
-            response, remoteTable = self.getTable(XFormKey)
-            self.importDataFromService.view(XFormID, remoteTable)
-        else:
-            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
-                                                self.tr("no data collect table selected"),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+
         
+    
 
     def getTable(self,form_key):
         #step1 - verify if form exists:

@@ -234,6 +234,8 @@ class ODK_fields(QTreeView):
             metadata_item.setFlags(Qt.ItemIsSelectable)
             metadata_item.setEnabled(True)
             metadata_item.setDragEnabled(True)
+            if (m[0]=='ODKUUID'):
+                metadata_field['fieldEnabled']= True
             metadata_item.addFieldDef(metadata_field)
             metadata_group.appendRow(metadata_item)
 

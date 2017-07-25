@@ -183,15 +183,10 @@ class QgisODK:
             callback=self.run,
             parent=self.iface.mainWindow())
         self.QODKMenu = QMenu('QgisOKD')
-        #self.QODKMenuAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"QgisODK", self.iface.legendInterface() )
-        #self.QODKMenuAction.setMenu(self.QODKMenu)
-        self.QODKOutAction = QAction(QIcon(icon_path)), self.tr(u"export ODK form"), self.QODKMenu )
-        #self.QODKInAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"ODK in", self.QODKMenu )
-        #self.QODKMenu.addAction(self.QODKOutAction)
-        #self.QODKMenu.addAction(self.QODKInAction)
+
+        self.QODKOutAction = QAction(QIcon(icon_path), self.tr(u"Make Online"), self.QODKMenu )
         self.iface.legendInterface().addLegendLayerAction(self.QODKOutAction,"","01", QgsMapLayer.VectorLayer,True)
-        self.QODKOutAction.triggered.connect(self.contextOdkout)
-        #self.QODKInAction.triggered.connect(self.ODKin)
+        self.QODKOutAction.triggered.connect(self.directExport)
         self.dlg.addGroupButton.clicked.connect(self.addODKGroup)
         self.dlg.exportXFormButton.clicked.connect(self.exportXForm)
         self.dlg.exportXlsFormButton.clicked.connect(self.exportXlsForm)
@@ -205,7 +200,12 @@ class QgisODK:
         self.dlg.removeFieldButton.clicked.connect(self.removeODKField)
         self.dlg.helpToolButton.clicked.connect(self.helpAction)
 
-
+    def directExport(self):
+        layer=self.iface.legendInterface().currentLayer()
+        self.ODKout(layer)
+        self.exportToWebService()
+        self.settingsDlg.collectData(layer)
+        
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:

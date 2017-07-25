@@ -44,6 +44,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         self.module = module
         super(QgisODKimportDataFromService, self).__init__(parent)
         self.setupUi(self)
+        self.syncroCheckBox.setChecked(True)
         self.syncroCheckBox.stateChanged.connect(self.checkSyncroAction)
         self.downloadCheckBox.stateChanged.connect(self.checkDownloadAction)
         self.checkDownloadAction()
@@ -83,7 +84,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         else:
             self.relativePathsCheckBox.setEnabled(False)
 
-    def checkSyncroAction(self):
+    def checkSyncroAction(self,layer=None):
         if self.syncroCheckBox.isChecked():
             self.layerComboBox.setEnabled(True)
             try:
@@ -99,7 +100,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 if current_idx != -1:
                     self.layerComboBox.setCurrentIndex(current_idx)
             self.layerComboBox.currentIndexChanged.connect(self.layerComboBoxChanged)
-            self.layerComboBoxChanged()
+            self.layerComboBoxChanged(layer)
         else:
             self.layerComboBox.setEnabled(False)
             self.fieldMapping = {}
@@ -109,11 +110,12 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             self.processingLayer = None
             self.populateFieldTable()
 
-    def layerComboBoxChanged(self):
+    def layerComboBoxChanged(self,currentLayer=None):
         '''
         if another layer is selected the currentlayerfields is updated 
         '''
-        currentLayer = self.getCurrentLayer()
+        if(currentLayer==None):
+            currentLayer = self.getCurrentLayer()
         currentLayerFields = {}
         for field in currentLayer.pendingFields():
             currentLayerFields[slugify(field.name())]=field.name() #dict with key slugified to simplify name match
@@ -131,6 +133,9 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             self.raise_()
         else:
             self.collectedData = None
+        
+        if collectedData:
+            self.collectedDataDict=collectedData
 
     def populateFieldTable(self):
         if self.collectedDataDict:
@@ -207,6 +212,36 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 cleanedDataDict.append(cleanedFeat)
             if self.syncroCheckBox.isChecked():
                 self.updateLayer(self.getCurrentLayer(),cleanedDataDict)
+            else:
+                geojsonDict = self.module.settingsDlg.getLayerFromTable(cleanedDataDict)
+                if geojsonDict:
+                    self.hide()
+                    workDir = QgsProject.instance().readPath("./")
+                    geoJsonFileName = QFileDialog().getSaveFileName(None, self.tr("Save as GeoJson"), workDir, "*.geojson")
+                    if QFileInfo(geoJsonFileName).suffix() != "geojson":
+                        geoJsonFileName += ".geojson"
+                    with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
+                        geojson_file.write(json.dumps(geojsonDict))
+                    layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), QFileInfo(geoJsonFileName).baseName(), "ogr")
+                    QgsMapLayerRegistry.instance().addMapLayer(layer)
+    def writeLayer(self,layer):
+        if self.collectedDataDict:
+            exportMap = self.getExportFieldMap()
+            cleanedDataDict = []
+            for feature in self.collectedDataDict:
+                cleanedFeat = {}                
+                for key,value in feature.iteritems():
+                    if key == "GEOMETRY":
+                        if "," in value: #geometry comes from google drive
+                            value = value.replace(" ",";").replace(",", " ") # fixed comma/space/semicolon mismatch between odk aggregate and google drive
+                        cleanedFeat["GEOMETRY"] = value
+                    elif key[-7:] == "ODKUUID":
+                        cleanedFeat["ODKUUID"] = value
+                    elif key in exportMap:
+                        cleanedFeat[exportMap[key]] = self.cleanURI(value) #Download and provide local URI if value is internet URI
+                cleanedDataDict.append(cleanedFeat)
+            if self.syncroCheckBox.isChecked():
+                self.updateLayer(layer,cleanedDataDict)
             else:
                 geojsonDict = self.module.settingsDlg.getLayerFromTable(cleanedDataDict)
                 if geojsonDict:
