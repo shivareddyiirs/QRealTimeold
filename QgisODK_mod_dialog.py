@@ -466,6 +466,7 @@ class ona(external_service):
             if XFormID:
                 XFormKey, response = self.formIDToPk(XFormID)
                 response, remoteTable = self.getTable(XFormKey)
+                self.importDataFromService.getData(XFormID, remoteTable,layer)
                 self.importDataFromService.writeLayer(layer)
             else:
                 self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),

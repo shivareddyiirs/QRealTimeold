@@ -133,9 +133,11 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             self.raise_()
         else:
             self.collectedData = None
+    def getData(self,surveyName,collectedData,layer=None):
         
         if collectedData:
             self.collectedDataDict=collectedData
+            self.checkSyncroAction(layer)
 
     def populateFieldTable(self):
         if self.collectedDataDict:
