@@ -242,20 +242,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                     elif key in exportMap:
                         cleanedFeat[exportMap[key]] = self.cleanURI(value) #Download and provide local URI if value is internet URI
                 cleanedDataDict.append(cleanedFeat)
-            if self.syncroCheckBox.isChecked():
-                self.updateLayer(layer,cleanedDataDict)
-            else:
-                geojsonDict = self.module.settingsDlg.getLayerFromTable(cleanedDataDict)
-                if geojsonDict:
-                    self.hide()
-                    workDir = QgsProject.instance().readPath("./")
-                    geoJsonFileName = QFileDialog().getSaveFileName(None, self.tr("Save as GeoJson"), workDir, "*.geojson")
-                    if QFileInfo(geoJsonFileName).suffix() != "geojson":
-                        geoJsonFileName += ".geojson"
-                    with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
-                        geojson_file.write(json.dumps(geojsonDict))
-                    layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), QFileInfo(geoJsonFileName).baseName(), "ogr")
-                    QgsMapLayerRegistry.instance().addMapLayer(layer)
+            self.updateLayer(layer,cleanedDataDict)
 
 
     def cleanURI(self,URI):
@@ -305,12 +292,13 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
 
         QgisFieldsList = [field.name() for field in layer.pendingFields()]
         #layer.beginEditCommand("ODK syncronize")
-        layer.startEditing()
+        if not layer.isEditable():
+            layer.startEditing()
         
-        uuidList = []
-        for qgisFeature in layer.getFeatures():
-            if qgisFeature['ODKUUID']:
-                uuidList.append(qgisFeature['ODKUUID'])
+        uuidList = [qgisFeature['ODKUUID'] for qgisFeature in layer.getFeatures()]
+##        for qgisFeature in layer.getFeatures():
+##            if qgisFeature['ODKUUID']:
+##                uuidList.append(qgisFeature['ODKUUID'])
 
         newQgisFeatures = []
         fieldError = None

@@ -20,7 +20,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo,QThread
 from PyQt4.QtGui import QMenu, QAction, QIcon, QFileDialog
 from PyQt4.QtXml import QDomDocument, QDomElement
 from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject
@@ -33,12 +33,15 @@ import xlsxwriter
 import requests
 import io
 import time
+from threading import Timer
+
 
 # Import the code for the dialog
 from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, internalBrowser
 import os.path
 from pyxform.builder import create_survey_element_from_dict
 from json_form_schema import json_test, dict_test
+from QgisODKThreadServices import QgisODKThreadServices
 
 
 class QgisODK:
@@ -74,6 +77,8 @@ class QgisODK:
         # Create the dialog (after translation) rightand keep reference
         self.dlg = QgisODKDialog(self)
         self.settingsDlg = QgisODKServices(self)
+        self.settingsThread=QgisODKThreadServices(self)
+        self.thread= QThread()
         self.helpBrowser = internalBrowser("http://documentup.com/enricofer/QgisODK")
         #self.importCollectedData = QgisODKImportCollectedData()
 
@@ -182,11 +187,15 @@ class QgisODK:
             text=self.tr(u'QgisODK'),
             callback=self.run,
             parent=self.iface.mainWindow())
-        self.QODKMenu = QMenu('QgisOKD')
+        self.QODKMenu = QMenu('QgisODK')
 
         self.QODKOutAction = QAction(QIcon(icon_path), self.tr(u"Make Online"), self.QODKMenu )
+        self.QODKSynchAction = QAction(self.tr(u"Synch"), self.QODKMenu )
+        self.QODKSynchAction.setCheckable(True)
         self.iface.legendInterface().addLegendLayerAction(self.QODKOutAction,"","01", QgsMapLayer.VectorLayer,True)
+        self.iface.legendInterface().addLegendLayerAction(self.QODKSynchAction,"","02", QgsMapLayer.VectorLayer,True)
         self.QODKOutAction.triggered.connect(self.directExport)
+        self.QODKSynchAction.triggered.connect(self.ODKSynch)
         self.dlg.addGroupButton.clicked.connect(self.addODKGroup)
         self.dlg.exportXFormButton.clicked.connect(self.exportXForm)
         self.dlg.exportXlsFormButton.clicked.connect(self.exportXlsForm)
@@ -199,13 +208,34 @@ class QgisODK:
         self.dlg.addFieldButton.clicked.connect(self.addODKField)
         self.dlg.removeFieldButton.clicked.connect(self.removeODKField)
         self.dlg.helpToolButton.clicked.connect(self.helpAction)
-
-    def directExport(self):
-        layer=self.iface.legendInterface().currentLayer()
-        self.ODKout(layer)
-        self.exportToWebService()
-        self.settingsDlg.collectData(layer)
         
+    def directExport(self):
+        self.ODKout(self.getLayer())
+        self.exportToWebService()
+        
+    def getLayer(self):
+        return self.iface.legendInterface().currentLayer()
+    
+    def checkSynch(self,layer):
+            
+            self.settingsDlg.collectData(layer)
+            self.t.run()
+           
+    def ODKSynch(self,checked=False):
+        if checked == True:
+##            self.settingsThread.setLayer(self.getLayer())
+##            self.settingsThread.moveToThread(self.thread)
+##            self.settingsThread.finished.connect(self.thread.quit)
+##            self.thread.started.connect(self.settingsThread.run)
+##            self.thread.start()
+            self.t=Timer(10,self.checkSynch,[self.getLayer()])
+            self.t.start()
+        else :
+##            self.thread.quit
+            self.t.cancel()
+            self.getLayer().commitChanges()
+    
+       
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -216,6 +246,7 @@ class QgisODK:
         # remove the toolbar
         del self.toolbar
         self.iface.legendInterface().removeLegendLayerAction(self.QODKOutAction)
+        self.iface.legendInterface().removeLegendLayerAction(self.QODKSynchAction)
 
     def openSettings(self):
         self.settingsDlg.show()
@@ -266,7 +297,7 @@ class QgisODK:
         self.populateVectorLayerCombo()
         self.dlg.show()
         self.dlg.raise_()
-        current_idx = self.dlg.layersComboBox.findData(self.iface.legendInterface().currentLayer().id())
+        current_idx = self.dlg.layerspopulateVectorLayerComboComboBox.findData(self.iface.legendInterface().currentLayer().id())
         if current_idx != -1:
             self.dlg.layersComboBox.setCurrentIndex(current_idx)
         self.ODKout(self.iface.legendInterface().currentLayer())
