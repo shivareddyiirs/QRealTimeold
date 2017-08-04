@@ -41,7 +41,7 @@ from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, internalBrowser
 import os.path
 from pyxform.builder import create_survey_element_from_dict
 from json_form_schema import json_test, dict_test
-from QgisODKThreadServices import QgisODKThreadServices
+
 
 
 class QgisODK:
@@ -77,7 +77,6 @@ class QgisODK:
         # Create the dialog (after translation) rightand keep reference
         self.dlg = QgisODKDialog(self)
         self.settingsDlg = QgisODKServices(self)
-        self.settingsThread=QgisODKThreadServices(self)
         self.thread= QThread()
         self.helpBrowser = internalBrowser("http://documentup.com/enricofer/QgisODK")
         #self.importCollectedData = QgisODKImportCollectedData()
