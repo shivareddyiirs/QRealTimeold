@@ -588,30 +588,17 @@ class ona(external_service):
 class aggregate(external_service):
     parameters = [
         ["id","aggregate"],
-        ["url",""],
-        ["name",""],
-        ["user", ""],
-        ["password", ""]
+        ["url",''],
+        ["name",''],
+        ["user", ''],
+        ["password", '']
         ]
     
     
     def __init__(self, parent):
         super(aggregate, self).__init__(parent,self.parameters)
         self.importDataFromService = QgisODKimportDataFromService(self.module)
-    def formIDToPk(self,xForm_id):
-        #verify if form exists:
-        url = self.getValue('url')+'//formList'
-        response = requests.get(url, proxies = self.getProxiesConf())
-        if response.status_code != requests.codes.ok:
-            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),self.tr("Response is not Ok"),level=QgsMessageBar.CRITICAL, duration=6)
-            return None, response
-        forms = response.content
-        form_key = None
-        for form in forms:
-            if form['id'] == xForm_id:
-                form_key = form['formid']
-                break
-        return form_key, response
+   
     def getExportMethod(self):
         return 'exportXForm'
 
@@ -637,39 +624,44 @@ class aggregate(external_service):
         files = {'form_def_file':files }
         response = requests.request(method, url,files = files, proxies = self.getProxiesConf() )
         return response
+        
     def collectData(self,layer):
         if not layer :
             return
         XFormID = layer.name().lower()
-        if XFormID:
-            XFormKey=XFormID
-            response, remoteTable = self.getTable(XFormKey)
-            self.importDataFromService.getData(XFormID, remoteTable,layer)
-            self.importDataFromService.writeLayer(layer)
+        XFormKey=XFormID
+        response, remoteTable = self.getTable(XFormKey)
+        if response.status_code == 200:
+            self.importDataFromService.updateLayer(layer,remoteTable)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("Form is invalid"),
                                                 level=QgsMessageBar.CRITICAL, duration=6)
+                                                
     def getTable(self,XFormKey):
-        url=self.getValue('url')+'//view//submissionList?formId='+xFormKey
+        url=self.getValue('url')+'/view/submissionList?formId='+XFormKey
         method='GET'
         response = requests.request(method,url,proxies=self.getProxiesConf())
 #        Read instance id
         if not response.status_code == 200:
-            return
+            return response
         root = ET.fromstring(response.content)
         ns='{http://opendatakit.org/submissions}'
         instance_ids=[child.text for child in root[0].findall(ns+'id')]
         table=[]
         for id in instance_ids :
-            url='https://odkproject-iirs.appspot.com/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(XFormKey,XFormKey,id)
+            url=self.getValue('url')+'/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(XFormKey,XFormKey,id)
             response=requests.request(method,url)
             if not response.status_code == 200:
-                return
+                return response
             root1=ET.fromstring(response.content)
             data=root1[0].findall(ns+XFormKey)
             dict={child.tag.replace(ns,''):child.text for child in data[0]}
             table.append(dict)
+#        cleanTable=[]
+#        for data in table:
+#            dict={key:self.importDataFromService.cleanURIm(value,XformKey) for key,value in data.iteritems()}
+#            cleanTable.append(dict)
         return response, table
 
 
