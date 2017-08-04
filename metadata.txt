@@ -7,12 +7,12 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=QgisODK
+name=QODK
 qgisMinimumVersion=2.14
 description= A tool for authoring and managing mobile surveys Open Data Kit (ODK) from QGIS
 version=1.6
-author=Enrico Ferreguti
-email=enricofer@gmail.com
+author=shiva reddy, prabhakar Alok
+email=kotishiva@gmail.com
 
 about=The Qgis plugin allows to build a "on field" mobile survey in minutes starting from a Qgis layer and get back collected data with the help of Open Data Kit tools and services. Open Data Kit (ODK) https://opendatakit.org/ is a free and open-source set of tools which help to manage mobile data collection solutions.
   The typical ODK collection workflow is based on the following activities:
@@ -23,7 +23,6 @@ about=The Qgis plugin allows to build a "on field" mobile survey in minutes star
 
 
 tracker=https://github.com/enricofer/QgisODK/issues
-repository=https://github.com/enricofer/QgisODK
 # End of mandatory metadata
 
 # Recommended items:

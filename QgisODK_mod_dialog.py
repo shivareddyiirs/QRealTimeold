@@ -29,6 +29,7 @@ import re
 import base64
 import StringIO
 import csv
+import xml.etree.ElementTree as ET
 
 from PyQt4 import QtGui
 from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
@@ -179,7 +180,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
 class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
 
     services = [
-        'ona', 'google_drive'
+        'ona', 'google_drive','aggregate'
     ]
     
 
@@ -584,6 +585,92 @@ class ona(external_service):
             geojson["features"].append(feature)
 
         return geojson
+class aggregate(external_service):
+    parameters = [
+        ["id","aggregate"],
+        ["url",""],
+        ["name",""],
+        ["user", ""],
+        ["password", ""]
+        ]
+    
+    
+    def __init__(self, parent):
+        super(aggregate, self).__init__(parent,self.parameters)
+        self.importDataFromService = QgisODKimportDataFromService(self.module)
+    def formIDToPk(self,xForm_id):
+        #verify if form exists:
+        url = self.getValue('url')+'//formList'
+        response = requests.get(url, proxies = self.getProxiesConf())
+        if response.status_code != requests.codes.ok:
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),self.tr("Response is not Ok"),level=QgsMessageBar.CRITICAL, duration=6)
+            return None, response
+        forms = response.content
+        form_key = None
+        for form in forms:
+            if form['id'] == xForm_id:
+                form_key = form['formid']
+                break
+        return form_key, response
+    def getExportMethod(self):
+        return 'exportXForm'
+
+    def getExportExtension(self):
+        return 'xml'
+    
+    def sendForm(self, xForm_id, xForm):
+        
+        #step1 - verify if form exists:
+#        form_key, response = self.formIDToPk(xForm_id)
+#        if response.status_code != requests.codes.ok:
+#            return response
+#        if form_key:
+#            method = 'PATCH'
+#            url = self.getValue('url')+'//formUpload'
+#        else:
+#            method = 'POST'
+#            url = self.getValue('url')+'//formUpload'
+        method = 'POST'
+        url = self.getValue('url')+'//formUpload'
+        #step1 - upload form: POST if new PATCH if exixtent
+        files = open(xForm,'r')
+        files = {'form_def_file':files }
+        response = requests.request(method, url,files = files, proxies = self.getProxiesConf() )
+        return response
+    def collectData(self,layer):
+        if not layer :
+            return
+        XFormID = layer.name().lower()
+        if XFormID:
+            XFormKey=XFormID
+            response, remoteTable = self.getTable(XFormKey)
+            self.importDataFromService.getData(XFormID, remoteTable,layer)
+            self.importDataFromService.writeLayer(layer)
+        else:
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
+                                                self.tr("Form is invalid"),
+                                                level=QgsMessageBar.CRITICAL, duration=6)
+    def getTable(self,XFormKey):
+        url=self.getValue('url')+'//view//submissionList?formId='+xFormKey
+        method='GET'
+        response = requests.request(method,url,proxies=self.getProxiesConf())
+#        Read instance id
+        if not response.status_code == 200:
+            return
+        root = ET.fromstring(response.content)
+        ns='{http://opendatakit.org/submissions}'
+        instance_ids=[child.text for child in root[0].findall(ns+'id')]
+        table=[]
+        for id in instance_ids :
+            url='https://odkproject-iirs.appspot.com/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(XFormKey,XFormKey,id)
+            response=requests.request(method,url)
+            if not response.status_code == 200:
+                return
+            root1=ET.fromstring(response.content)
+            data=root1[0].findall(ns+XFormKey)
+            dict={child.tag.replace(ns,''):child.text for child in data[0]}
+            table.append(dict)
+        return response, table
 
 
 class google_drive(external_service):
@@ -972,3 +1059,5 @@ https://docs.google.com/spreadsheets/d/%s/edit
         self.shareFileWithCollectors(response.json()['id'],role='reader')
 
         return response
+
+
