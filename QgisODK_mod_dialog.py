@@ -643,12 +643,12 @@ class aggregate(external_service):
         method='GET'
         response = requests.request(method,url,proxies=self.getProxiesConf())
 #        Read instance id
+        table=[]
         if not response.status_code == 200:
-            return response
+            return response, table
         root = ET.fromstring(response.content)
         ns='{http://opendatakit.org/submissions}'
         instance_ids=[child.text for child in root[0].findall(ns+'id')]
-        table=[]
         for id in instance_ids :
             url=self.getValue('url')+'/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(XFormKey,XFormKey,id)
             response=requests.request(method,url)
