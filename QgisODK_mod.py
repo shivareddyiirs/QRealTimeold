@@ -34,6 +34,7 @@ import requests
 import io
 import time
 from threading import Timer
+import sys
 
 
 # Import the code for the dialog
@@ -216,10 +217,13 @@ class QgisODK:
         return self.iface.legendInterface().currentLayer()
     
     def checkSynch(self,layer):
-            
+        try:
             self.settingsDlg.collectData(layer)
-            self.t.run()
-           
+        except:
+            print('Thread is closed dur to error')
+            sys.exit()
+        self.t.run()
+        
     def ODKSynch(self,checked=False):
         if checked == True:
 ##            self.settingsThread.setLayer(self.getLayer())
@@ -232,6 +236,7 @@ class QgisODK:
         else :
 ##            self.thread.quit
             self.t.cancel()
+            self.t.join()
             self.getLayer().commitChanges()
     
        

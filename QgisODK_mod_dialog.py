@@ -30,6 +30,7 @@ import base64
 import StringIO
 import csv
 import xml.etree.ElementTree as ET
+import sys
 
 from PyQt4 import QtGui
 from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
@@ -585,11 +586,12 @@ class ona(external_service):
             geojson["features"].append(feature)
 
         return geojson
+        
 class aggregate(external_service):
     parameters = [
         ["id","aggregate"],
         ["url",''],
-        ["name",''],
+        ["lastID",''],
         ["user", ''],
         ["password", '']
         ]
@@ -604,21 +606,29 @@ class aggregate(external_service):
 
     def getExportExtension(self):
         return 'xml'
-    
+        
+    def getFormList(self,xForm_id):
+        method='GET'
+        url=self.getValue('url')+'//formList'
+        response= requests.request(method,url)
+        root=ET.fromstring(response.content)
+        keylist=[form.attrib['url'].split('=')[1] for form in root.findall('form')]
+        return xForm_id in keylist, response
+        
     def sendForm(self, xForm_id, xForm):
         
-        #step1 - verify if form exists:
-#        form_key, response = self.formIDToPk(xForm_id)
-#        if response.status_code != requests.codes.ok:
-#            return response
-#        if form_key:
-#            method = 'PATCH'
-#            url = self.getValue('url')+'//formUpload'
-#        else:
-#            method = 'POST'
-#            url = self.getValue('url')+'//formUpload'
-        method = 'POST'
-        url = self.getValue('url')+'//formUpload'
+#        step1 - verify if form exists:
+        form_key, response = self.getFormList(xForm_id)
+        if response.status_code != requests.codes.ok:
+            return response
+        if form_key:
+            method = 'POST'
+            url = self.getValue('url')+'//formUpload'
+        else:
+            method = 'POST'
+            url = self.getValue('url')+'//formUpload'
+#        method = 'POST'
+#        url = self.getValue('url')+'//formUpload'
         #step1 - upload form: POST if new PATCH if exixtent
         files = open(xForm,'r')
         files = {'form_def_file':files }
@@ -628,11 +638,13 @@ class aggregate(external_service):
     def collectData(self,layer):
         if not layer :
             return
-        XFormID = layer.name().lower()
-        XFormKey=XFormID
+        XFormKey=layer.name()
         response, remoteTable = self.getTable(XFormKey)
         if response.status_code == 200:
-            self.importDataFromService.updateLayer(layer,remoteTable)
+            print 'before Update Layer'
+            if remoteTable:
+                print 'table have some data'
+#                self.importDataFromService.updateLayer(layer,remoteTable)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("Form is invalid"),
@@ -641,27 +653,54 @@ class aggregate(external_service):
     def getTable(self,XFormKey):
         url=self.getValue('url')+'/view/submissionList?formId='+XFormKey
         method='GET'
-        response = requests.request(method,url,proxies=self.getProxiesConf())
+        try:
+            response = requests.request(method,url,proxies=self.getProxiesConf())
 #        Read instance id
+        except:
+            print 'not able to downlaod'
+            sys.exit()
         table=[]
         if not response.status_code == 200:
             return response, table
         root = ET.fromstring(response.content)
         ns='{http://opendatakit.org/submissions}'
         instance_ids=[child.text for child in root[0].findall(ns+'id')]
+        print 'instance ids before filter', instance_ids
+        lastID= self.getValue('lastID')
+        print 'lastID is',lastID
+        lastindex=0
+        try:
+            lastindex= instance_ids.index(lastID)
+        except:
+            print 'first download'
+        ns1='{http://www.opendatakit.org/cursor}'
+        lastReturnedURI= ET.fromstring(root[1].text).findall(ns1+'uriLastReturnedValue')[0].text
+        print 'server lastID is',lastReturnedURI
+        if lastID ==lastReturnedURI:
+            print 'No Download returning'
+            return response,table
+        instance_ids=instance_ids[lastindex:]
+        print  'downloading',instance_ids
         for id in instance_ids :
-            url=self.getValue('url')+'/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(XFormKey,XFormKey,id)
-            response=requests.request(method,url)
-            if not response.status_code == 200:
-                return response
-            root1=ET.fromstring(response.content)
-            data=root1[0].findall(ns+XFormKey)
-            dict={child.tag.replace(ns,''):child.text for child in data[0]}
-            table.append(dict)
-#        cleanTable=[]
-#        for data in table:
-#            dict={key:self.importDataFromService.cleanURIm(value,XformKey) for key,value in data.iteritems()}
-#            cleanTable.append(dict)
+            if id:
+                url=self.getValue('url')+'/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(XFormKey,XFormKey,id)
+                try:
+                    response=requests.request(method,url)
+                except:
+                    print 'not able to fetch'
+                if not response.status_code == 200:
+                    return response
+                root1=ET.fromstring(response.content)
+                data=root1[0].findall(ns+XFormKey)
+                dict={child.tag.replace(ns,''):child.text for child in data[0]}
+                mediaFile=root1.findall(ns+'mediaFile')
+                if len(mediaFile)>0:
+                    mediaDict={child.tag.replace(ns,''):child.text for child in mediaFile[0]}
+                    for key,value in dict.iteritems():
+                        if value==mediaDict['filename']:
+                            dict[key]=self.importDataFromService.cleanURIm(mediaDict['downloadUrl'],XFormKey,value)
+                table.append(dict)
+        self.getValue('lastID',lastReturnedURI)
         return response, table
 
 

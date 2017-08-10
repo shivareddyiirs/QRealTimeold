@@ -7,7 +7,7 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=QODK
+name=QgisODK
 qgisMinimumVersion=2.14
 description= A tool for authoring and managing mobile surveys Open Data Kit (ODK) from QGIS
 version=1.6

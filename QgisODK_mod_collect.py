@@ -25,6 +25,7 @@ import os
 import json
 import time
 import requests
+import sys
 
 from PyQt4 import QtGui
 from PyQt4.QtGui import QTableWidgetItem, QSizePolicy, QItemDelegate, QComboBox, QLineEdit, QFileDialog
@@ -272,30 +273,34 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 return 'error downloading remote file: ',response.reason
         else:
             return URI
-    def cleanURIm(self,URI,layerName):
+            
+    def cleanURIm(self,URI,layerName,fileName):
         
         attachements = {}
         if isinstance(URI, basestring) and (URI[0:7] == 'http://' or URI[0:8] == 'https://'):
-            fileName = URI.split('/')[-1]
-            downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s' % layerName)
+            downloadDir = os.path.join(os.path.expanduser('~'),'attachments_%s' % layerName)
             if not os.path.exists(downloadDir):
                 os.makedirs(downloadDir)
-            response = requests.get(URI, stream=True)
+            try:
+                response = requests.get(URI, stream=True)
+            except:
+                sys.exit()
             localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileName))
             if response.status_code == 200:
-                print "downloading",localAttachmentPath, URI
+                print "downloading", URI
                 with open(localAttachmentPath, 'wb') as f:
                     for chunk in response:
                         f.write(chunk)
                     localURI = localAttachmentPath
-                if self.relativePathsCheckBox.isChecked():
-                    return os.path.relpath(localURI,QgsProject.instance().readPath("./"))
-                else:
-                    return localURI
+                print 'loaded image'
+                print localURI
+                return localURI
+                
             else:
                 print 'error downloading remote file: ',response.reason
                 return 'error downloading remote file: ',response.reason
         else:
+            print 'Not downloaded anything'
             return URI
 
     def updateLayer(self,layer,dataDict):
